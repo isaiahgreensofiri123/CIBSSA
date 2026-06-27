@@ -379,6 +379,9 @@
           }
         });
         
+        if (typeof MobileTabs !== 'undefined') {
+          MobileTabs.updateActive('home');
+        }
         window.scrollTo({ top: 0, behavior: 'instant' });
         return;
       }
@@ -461,6 +464,10 @@
         }
       } else {
         window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+
+      if (typeof MobileTabs !== 'undefined') {
+        MobileTabs.updateActive(activeArticleId);
       }
     },
 
@@ -838,6 +845,75 @@
   };
 
   /* ──────────────────────────────────────────────
+   *  12. MOBILE HORIZONTAL TABS
+   * ────────────────────────────────────────────── */
+
+  const MobileTabs = {
+    container: null,
+
+    init: function () {
+      this.container = $('#mobileTabsContainer');
+      if (!this.container) return;
+
+      this._buildTabs();
+    },
+
+    _buildTabs: function () {
+      this.container.innerHTML = '';
+
+      const tabs = [
+        { id: 'home', label: '🏠 Home' },
+        { id: 'preamble', label: 'Preamble' },
+        { id: 'article-1', label: 'Art 1' },
+        { id: 'article-2', label: 'Art 2' },
+        { id: 'article-3', label: 'Art 3' },
+        { id: 'article-4', label: 'Art 4' },
+        { id: 'article-5', label: 'Art 5' },
+        { id: 'article-6', label: 'Art 6' },
+        { id: 'article-7', label: 'Art 7' },
+        { id: 'article-8', label: 'Art 8' },
+        { id: 'article-9', label: 'Art 9' },
+        { id: 'article-10', label: 'Art 10' },
+        { id: 'article-11', label: 'Art 11' },
+        { id: 'article-12', label: 'Art 12' },
+        { id: 'assent', label: 'Assent' },
+        { id: 'appendices', label: 'Oaths' }
+      ];
+
+      tabs.forEach(tab => {
+        const item = document.createElement('a');
+        item.href = '#' + tab.id;
+        item.className = 'mobile-tab-item';
+        item.textContent = tab.label;
+        item.setAttribute('data-tab-id', tab.id);
+
+        item.addEventListener('click', function () {
+          Sidebar._closeMobile();
+        });
+
+        this.container.appendChild(item);
+      });
+    },
+
+    updateActive: function (hash) {
+      if (!this.container) return;
+
+      const activeId = hash || 'home';
+      const items = $$('.mobile-tab-item', this.container);
+
+      items.forEach(item => {
+        const tabId = item.getAttribute('data-tab-id');
+        if (tabId === activeId) {
+          item.classList.add('active');
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
+  };
+
+  /* ──────────────────────────────────────────────
    *  BOOT – Initialise everything on DOMContentLoaded
    * ────────────────────────────────────────────── */
 
@@ -845,6 +921,7 @@
     DarkMode.init();
     Sidebar.init();
     AppRouter.init();
+    MobileTabs.init();
     Search.init();
     BackToTop.init();
     ProgressBar.init();

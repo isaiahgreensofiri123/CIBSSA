@@ -25,7 +25,7 @@
                 <span></span>
             </button>
             <div class="header-brand">
-                <img src="logo.png" alt="CIBSSA Logo" class="header-logo" id="headerLogo">
+                <span class="header-logo-icon">⚖️</span>
                 <div class="header-text">
                     <h1 class="header-title">CIBSSA</h1>
                     <p class="header-subtitle">Constitution 2025</p>
@@ -84,7 +84,7 @@
             <div class="hero-bg"></div>
             <div class="hero-content">
                 <div class="hero-logo-container">
-                    <img src="logo.png" alt="CIBSSA Logo" class="hero-logo">
+                    <div class="hero-logo-icon">🏛️</div>
                 </div>
                 <h1 class="hero-title">The Constitution</h1>
                 <p class="hero-association">Cinematography and Broadcast Studies<br>Student's Association</p>
@@ -94,6 +94,28 @@
                 <div class="hero-date">Effective: 22nd December 2025</div>
             </div>
         </section>
+
+        <!-- Reader Header (Back navigation + info) -->
+        <div id="readerHeader" class="reader-header" style="display: none;">
+            <button class="back-btn" id="backToDirBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back to Directory
+            </button>
+            <div class="reader-meta">
+                <span id="readerCurrentItem">Preamble</span>
+            </div>
+        </div>
+
+        <!-- App Dashboard (Directory) -->
+        <div id="appDashboard" class="app-dashboard">
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">Constitution Directory</h2>
+                <p class="dashboard-subtitle">Select any article, preamble, or appendix below to read its provisions.</p>
+            </div>
+            <div class="dashboard-grid" id="dashboardGrid">
+                <!-- Dynamic Article Cards will be injected here by JS -->
+            </div>
+        </div>
 
         <!-- Preamble -->
         <article class="constitution-article" id="preamble" data-article="preamble">
@@ -1126,6 +1148,21 @@
                                 <li>That I will not allow my personal interest to influence my official conduct or official decisions.</li>
                                 <li>That I will, to the best of my ability, preserve, protect and defend the Constitution of the Cinematography And Broadcast Studies Student's Association.</li>
                             </ul>
+                        </blockquote>
+                    </div>
+                </section>
+
+                <section class="constitution-section oath-card" id="oath-representative">
+                    <h3 class="section-title">Oath of Office for the CIBSSA Representative Council (CRC)</h3>
+                    <div class="section-content">
+                        <blockquote class="oath-text">
+                            I, ______________________ (Name), do solemnly swear that I will be faithful and bear true allegiance to the department of Cinematography And Broadcast Studies, Rivers State University.
+                            <ul>
+                                <li>That as an elected member of the Representative Council of CIBSSA, I shall discharge my legislative duties to the best of my ability, and in accordance with the constitution of CIBSSA, and the law, and always in the interest of the sovereignty, integrity, solidarity, well-being and prosperity of the association and its members.</li>
+                                <li>That I will perform my functions honestly and faithfully, and uphold the principles of honesty, dependability, modesty, and selfless service.</li>
+                                <li>That I will not allow my personal interest to influence my official conduct or legislative decisions.</li>
+                                <li>That I will, to the best of my ability, preserve, protect and defend the Constitution of the Cinematography And Broadcast Studies Student's Association.</li>
+                            </ul>
                             So help me God.
                         </blockquote>
                     </div>
@@ -1133,11 +1170,23 @@
             </div>
         </article>
 
+        <!-- Reader Footer Navigation -->
+        <div id="readerFooter" class="reader-footer" style="display: none;">
+            <button class="nav-btn prev-btn" id="prevSectionBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Previous
+            </button>
+            <button class="nav-btn next-btn" id="nextSectionBtn">
+                Next
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+
         <!-- Footer -->
         <footer class="main-footer">
             <div class="footer-content">
                 <div class="footer-brand">
-                    <img src="logo.png" alt="CIBSSA Logo" class="footer-logo">
+                    <span class="footer-logo-icon">⚖️</span>
                     <div>
                         <p class="footer-name">CIBSSA</p>
                         <p class="footer-tagline">"Beyond Telling, We Show"</p>

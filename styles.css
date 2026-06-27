@@ -2028,3 +2028,334 @@ body.light-mode .theme-toggle-thumb {
   color: var(--text-muted);
   font-weight: 500;
 }
+
+/* ============================================================
+   CIBSSA Constitution — App Layout & Mobile Optimisations
+   ============================================================ */
+
+/* Brand Logo Icon Enhancements */
+.header-logo-icon {
+  font-size: 1.6rem;
+  margin-right: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 3s infinite;
+}
+.hero-logo-icon {
+  font-size: 4.5rem;
+  margin-bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 15px rgba(0, 188, 212, 0.4));
+  animation: float 4s ease-in-out infinite;
+}
+.footer-logo-icon {
+  font-size: 1.6rem;
+  margin-right: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* App Dashboard Layout */
+.app-dashboard {
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+  animation: fadeInUp 0.5s var(--ease-out);
+}
+.dashboard-header {
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+.dashboard-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+.dashboard-subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+.dashboard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--gradient-primary);
+}
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--clr-primary-light);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+.dashboard-card-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--clr-accent-light);
+  letter-spacing: 0.12em;
+  margin-bottom: 0.5rem;
+}
+body.light-mode .dashboard-card-num {
+  color: var(--clr-accent);
+}
+.dashboard-card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+.dashboard-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+  flex-grow: 1;
+}
+.dashboard-card-action {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--clr-teal);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: gap var(--transition-fast);
+}
+.dashboard-card:hover .dashboard-card-action {
+  gap: 0.6rem;
+}
+
+/* Reader Header and Footer Controls */
+.reader-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-surface-raised);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+  animation: fadeInDown 0.4s var(--ease-out);
+}
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.back-btn:hover {
+  background: var(--bg-search);
+  border-color: var(--clr-primary-light);
+}
+.reader-meta {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--clr-accent-light);
+  text-align: right;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.light-mode .reader-meta {
+  color: var(--clr-primary);
+}
+
+.reader-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  gap: 1rem;
+}
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  min-width: 120px;
+  min-height: 48px; /* Touch-friendly height */
+}
+.nav-btn:hover:not(:disabled) {
+  background: var(--gradient-primary);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+.nav-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  background: var(--bg-surface-raised);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+
+/* SPA Hiding/Showing Logic classes */
+body.app-view-active .hero {
+  display: none !important;
+}
+body.app-view-active .constitution-article {
+  display: none !important;
+}
+body.app-view-active .constitution-article.active-article {
+  display: block !important;
+  animation: scaleIn 0.4s var(--ease-out);
+}
+
+/* Make sure all active article bodies display expanded (since we no longer use accordions) */
+body.app-view-active .constitution-article.active-article .article-body {
+  max-height: none !important;
+  opacity: 1 !important;
+  display: block !important;
+  padding-top: 1rem;
+}
+body.app-view-active .constitution-article.active-article .accordion-chevron {
+  display: none !important; /* Hide chevron since it is no longer collapsible */
+}
+body.app-view-active .constitution-article.active-article .article-header {
+  cursor: default !important;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.75rem;
+}
+
+/* Mobile Optimisations (under 768px) */
+@media (max-width: 768px) {
+  .dashboard-title {
+    font-size: 1.8rem;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: 1rem;
+  }
+  .dashboard-card {
+    padding: 1.25rem;
+  }
+  
+  .reader-header {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .back-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+  }
+  .reader-meta {
+    font-size: 0.85rem;
+  }
+  
+  .reader-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+  }
+  .nav-btn {
+    padding: 0.65rem 1rem;
+    font-size: 0.9rem;
+    min-width: 100px;
+    flex: 1; /* Stretch on mobile for easy touching */
+  }
+
+  .main-content {
+    padding: 1.5rem 1.25rem;
+    padding-top: calc(var(--header-height) + 1rem);
+  }
+  
+  .hero {
+    padding: 2.5rem 1.25rem 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .hero-logo-icon {
+    font-size: 3.5rem;
+  }
+  .hero-title {
+    font-size: 2rem;
+  }
+  .hero-association {
+    font-size: 1.1rem;
+  }
+  
+  /* Article content text readability on mobile */
+  .article-title {
+    font-size: 1.5rem !important;
+  }
+  .section-title {
+    font-size: 1.2rem !important;
+  }
+  .section-content {
+    padding-left: 0.25rem !important;
+  }
+  
+  /* Ceremonial layout sizing for mobile */
+  .signatories {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .signatory-card {
+    padding: 1rem !important;
+  }
+}
+
+/* Touch targets for buttons */
+button, 
+.control-btn, 
+.toc-link, 
+.theme-toggle {
+  min-height: 38px;
+}
+@media (max-width: 768px) {
+  button, 
+  .control-btn, 
+  .theme-toggle {
+    min-height: 44px; /* Native feel */
+  }
+}
+

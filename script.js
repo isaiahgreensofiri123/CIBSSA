@@ -1,20 +1,22 @@
 /**
  * ============================================================
- *  CIBSSA Constitution – Interactive Website Script
+ *  CIBSSA Constitution – Interactive App Script
  *  Cinematography & Broadcast Studies Student's Association
  * ============================================================
  *  Vanilla JavaScript – no frameworks, no jQuery.
  *  Features:
  *    1.  Dark / Light mode toggle (persisted)
- *    2.  Sidebar table-of-contents (auto-generated)
+ *    2.  Sidebar table-of-contents (auto-generated & route-aware)
  *    3.  Full-text search with highlighting
- *    4.  Collapsible article accordions
- *    5.  Back-to-top button
- *    6.  Reading progress bar
- *    7.  Scroll-reveal animations
- *    8.  Print button
- *    9.  Font-size controls (persisted)
- *   10.  Mobile hamburger menu
+ *    4.  Single-Page App Router (Section-by-section view)
+ *    5.  Dynamic Directory Dashboard
+ *    6.  Reader Header and Pagination controls (Prev / Next)
+ *    7.  Back-to-top button
+ *    8.  Reading progress bar
+ *    9.  Scroll-reveal animations
+ *   10.  Print button
+ *   11.  Font-size controls (persisted)
+ *   12.  Mobile responsive navigation
  * ============================================================
  */
 
@@ -25,12 +27,6 @@
    *  0. UTILITY HELPERS
    * ────────────────────────────────────────────── */
 
-  /**
-   * Debounce – delays invoking `fn` until after `wait` ms of silence.
-   * @param {Function} fn
-   * @param {number}   wait  milliseconds
-   * @returns {Function}
-   */
   function debounce(fn, wait) {
     let timer;
     return function () {
@@ -43,19 +39,14 @@
     };
   }
 
-  /**
-   * Shorthand querySelector / querySelectorAll
-   */
   function $(selector, scope) {
     return (scope || document).querySelector(selector);
   }
+
   function $$(selector, scope) {
     return Array.from((scope || document).querySelectorAll(selector));
   }
 
-  /**
-   * Escape special regex characters in a string.
-   */
   function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -68,25 +59,21 @@
     STORAGE_KEY: 'cibssa-dark-mode',
     body: document.body,
 
-    /** Initialise – read stored preference or respect OS setting */
     init: function () {
-      const toggle = $('#theme-toggle');
+      const toggle = $('#themeToggle');
       if (!toggle) return;
 
-      // Determine initial state
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored === 'true') {
         this.enable();
       } else if (stored === 'false') {
         this.disable();
       } else {
-        // No preference saved – fall back to OS preference
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
           this.enable();
         }
       }
 
-      // Toggle on click
       toggle.addEventListener('click', function () {
         DarkMode.toggle();
       });
@@ -94,14 +81,14 @@
 
     enable: function () {
       this.body.classList.add('dark-mode');
+      this.body.classList.remove('light-mode');
       localStorage.setItem(this.STORAGE_KEY, 'true');
-      this._updateToggleIcon(true);
     },
 
     disable: function () {
       this.body.classList.remove('dark-mode');
+      this.body.classList.add('light-mode');
       localStorage.setItem(this.STORAGE_KEY, 'false');
-      this._updateToggleIcon(false);
     },
 
     toggle: function () {
@@ -109,19 +96,6 @@
         this.disable();
       } else {
         this.enable();
-      }
-    },
-
-    /** Update the icon inside the toggle button */
-    _updateToggleIcon: function (isDark) {
-      const icon = $('#theme-toggle .toggle-icon, #theme-toggle i');
-      if (!icon) return;
-      if (isDark) {
-        icon.textContent = '☀️';
-        icon.setAttribute('aria-label', 'Switch to light mode');
-      } else {
-        icon.textContent = '🌙';
-        icon.setAttribute('aria-label', 'Switch to dark mode');
       }
     }
   };
@@ -131,213 +105,390 @@
    * ────────────────────────────────────────────── */
 
   const Sidebar = {
-    container: null,       // #sidebar or #toc-container
-    tocList: null,         // <ul> that will hold links
-    observer: null,        // IntersectionObserver for active-link tracking
-    headingMap: [],        // { id, el, tocLink }
+    container: null,
+    tocNav: null,
+    observer: null,
+    headingMap: [],
 
     init: function () {
-      this.container = $('#sidebar') || $('#toc-container');
-      this.tocList = $('#toc-list');
-      if (!this.tocList) return;
+      this.container = $('#sidebar');
+      this.tocNav = $('#tocNav');
+      if (!this.container || !this.tocNav) return;
 
       this._buildTOC();
-      this._observeSections();
       this._bindMobileToggle();
     },
 
-    /* ---- Build the TOC from the DOM ---- */
     _buildTOC: function () {
-      // Grab every <article> (or .article) heading
-      const articles = $$('article, .article');
+      const articles = $$('article.constitution-article');
+      
+      const ul = document.createElement('ul');
+      ul.classList.add('toc-list');
 
-      articles.forEach(function (article) {
-        // Find the article's primary heading
-        const heading = $('h2, h3, .article-header, .article-title', article);
+      // Add a Home Link in sidebar TOC
+      const homeLi = document.createElement('li');
+      homeLi.classList.add('toc-item');
+      const homeA = document.createElement('a');
+      homeA.href = '#home';
+      homeA.classList.add('toc-link');
+      homeA.innerHTML = '<span class="toc-number">🏠</span> Home Directory';
+      homeA.addEventListener('click', () => {
+        Sidebar._closeMobile();
+      });
+      homeLi.appendChild(homeA);
+      ul.appendChild(homeLi);
+
+      articles.forEach((article) => {
+        const heading = $('h2.article-title', article);
         if (!heading) return;
 
-        // Ensure heading has an id
-        if (!heading.id) {
-          heading.id = 'toc-' + Sidebar._slugify(heading.textContent);
-        }
+        const articleId = article.id;
+        const numberSpan = $('.article-number', heading);
+        const articleNumber = numberSpan ? numberSpan.textContent.trim() : '';
+        const articleCleanTitle = heading.textContent
+          .replace(articleNumber, '')
+          .replace('📜', '')
+          .replace('✍️', '')
+          .replace('📖', '')
+          .trim();
 
-        // Create top-level <li>
         const li = document.createElement('li');
         li.classList.add('toc-item', 'toc-article');
 
         const a = document.createElement('a');
-        a.href = '#' + heading.id;
-        a.textContent = heading.textContent.trim();
+        a.href = '#' + articleId;
         a.classList.add('toc-link');
+        
+        const numBadge = document.createElement('span');
+        numBadge.classList.add('toc-number');
+        numBadge.textContent = articleNumber ? articleNumber.replace('Article ', '') : '📜';
+        
+        a.appendChild(numBadge);
+        a.appendChild(document.createTextNode(' ' + articleCleanTitle));
         li.appendChild(a);
 
-        Sidebar.headingMap.push({ id: heading.id, el: heading, tocLink: a });
+        this.headingMap.push({ id: articleId, tocLink: a });
 
         // Sub-sections inside this article
-        const sections = $$('section, .section', article);
+        const sections = $$('section.constitution-section', article);
         if (sections.length) {
           const subUl = document.createElement('ul');
           subUl.classList.add('toc-sub-list');
+          subUl.style.listStyle = 'none';
 
-          sections.forEach(function (sec) {
-            const secHeading = $('h3, h4, .section-title, .section-header', sec);
+          sections.forEach((sec) => {
+            const secHeading = $('h3.section-title', sec);
             if (!secHeading) return;
 
-            if (!secHeading.id) {
-              secHeading.id = 'toc-' + Sidebar._slugify(secHeading.textContent);
-            }
+            const secId = sec.id;
+            const secTitle = secHeading.textContent.trim();
 
             const subLi = document.createElement('li');
             subLi.classList.add('toc-item', 'toc-section');
 
             const subA = document.createElement('a');
-            subA.href = '#' + secHeading.id;
-            subA.textContent = secHeading.textContent.trim();
-            subA.classList.add('toc-link', 'toc-sub-link');
+            subA.href = '#' + secId;
+            subA.classList.add('toc-link');
+            subA.setAttribute('data-level', '2');
+            subA.textContent = secTitle;
+            
             subLi.appendChild(subA);
             subUl.appendChild(subLi);
 
-            Sidebar.headingMap.push({ id: secHeading.id, el: secHeading, tocLink: subA });
+            this.headingMap.push({ id: secId, tocLink: subA });
+
+            subA.addEventListener('click', () => {
+              Sidebar._closeMobile();
+            });
           });
 
           li.appendChild(subUl);
-
-          // Collapse toggle
-          a.classList.add('has-children');
-          const chevron = document.createElement('span');
-          chevron.classList.add('toc-chevron');
-          chevron.innerHTML = '&#9662;'; // ▾
-          a.prepend(chevron);
-
-          // Click chevron to collapse / expand sub-list
-          chevron.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            li.classList.toggle('collapsed');
-          });
         }
 
-        Sidebar.tocList.appendChild(li);
-
-        // Smooth scroll when clicking any TOC link
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          Sidebar._scrollTo(heading.id);
+        a.addEventListener('click', () => {
           Sidebar._closeMobile();
         });
+
+        ul.appendChild(li);
       });
 
-      // Bind sub-link clicks
-      $$('.toc-sub-link').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-          e.preventDefault();
-          var targetId = this.getAttribute('href').slice(1);
-          Sidebar._scrollTo(targetId);
-          Sidebar._closeMobile();
-        });
-      });
+      this.tocNav.appendChild(ul);
     },
 
-    /* ---- IntersectionObserver for active TOC link ---- */
-    _observeSections: function () {
-      if (!this.headingMap.length) return;
-
-      var options = {
-        root: null,
-        rootMargin: '-80px 0px -60% 0px',
-        threshold: 0
-      };
-
-      this.observer = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            // Remove active from all
-            Sidebar.headingMap.forEach(function (h) {
-              h.tocLink.classList.remove('active');
-            });
-            // Activate the visible one
-            var match = Sidebar.headingMap.find(function (h) {
-              return h.id === entry.target.id;
-            });
-            if (match) {
-              match.tocLink.classList.add('active');
-              // Ensure parent article item is expanded
-              var parentLi = match.tocLink.closest('.toc-article');
-              if (parentLi) parentLi.classList.remove('collapsed');
-            }
-          }
-        });
-      }, options);
-
-      this.headingMap.forEach(function (h) {
-        Sidebar.observer.observe(h.el);
-      });
-    },
-
-    /* ---- Mobile hamburger toggle ---- */
     _bindMobileToggle: function () {
-      var hamburger = $('#hamburger, #mobile-menu-toggle, .hamburger');
-      var overlay = $('#sidebar-overlay, .sidebar-overlay');
+      const hamburger = $('#hamburger');
+      const overlay = $('#sidebarOverlay');
 
       if (hamburger) {
-        hamburger.addEventListener('click', function () {
-          Sidebar._toggleMobile();
+        hamburger.addEventListener('click', () => {
+          this._toggleMobile();
         });
       }
       if (overlay) {
-        overlay.addEventListener('click', function () {
-          Sidebar._closeMobile();
+        overlay.addEventListener('click', () => {
+          this._closeMobile();
         });
       }
     },
 
     _toggleMobile: function () {
       if (this.container) this.container.classList.toggle('open');
-      var overlay = $('#sidebar-overlay, .sidebar-overlay');
+      const overlay = $('#sidebarOverlay');
       if (overlay) overlay.classList.toggle('visible');
-      document.body.classList.toggle('sidebar-open');
+      const hamburger = $('#hamburger');
+      if (hamburger) hamburger.classList.toggle('active');
     },
 
     _closeMobile: function () {
       if (this.container) this.container.classList.remove('open');
-      var overlay = $('#sidebar-overlay, .sidebar-overlay');
+      const overlay = $('#sidebarOverlay');
       if (overlay) overlay.classList.remove('visible');
-      document.body.classList.remove('sidebar-open');
-    },
-
-    /* ---- Smooth scroll helper ---- */
-    _scrollTo: function (id) {
-      var target = document.getElementById(id);
-      if (!target) return;
-      var headerOffset = 80; // account for fixed header
-      var top = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: top, behavior: 'smooth' });
-
-      // Also expand the article if it's collapsed
-      var article = target.closest('article, .article');
-      if (article) {
-        var content = $('.article-content, .article-body', article);
-        if (content && content.classList.contains('collapsed')) {
-          content.classList.remove('collapsed');
-          article.classList.add('expanded');
-        }
-      }
-    },
-
-    /* ---- Slug helper ---- */
-    _slugify: function (text) {
-      return text
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/[\s_]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .substring(0, 60);
+      const hamburger = $('#hamburger');
+      if (hamburger) hamburger.classList.remove('active');
     }
   };
 
   /* ──────────────────────────────────────────────
-   *  3. SEARCH FUNCTIONALITY
+   *  3. APP ROUTER (Section-by-Section navigation)
+   * ────────────────────────────────────────────── */
+
+  const AppRouter = {
+    ROUTE_ITEMS: [
+      'preamble',
+      'article-1',
+      'article-2',
+      'article-3',
+      'article-4',
+      'article-5',
+      'article-6',
+      'article-7',
+      'article-8',
+      'article-9',
+      'article-10',
+      'article-11',
+      'article-12',
+      'assent',
+      'appendices'
+    ],
+
+    init: function () {
+      this.dashboard = $('#appDashboard');
+      this.readerHeader = $('#readerHeader');
+      this.readerFooter = $('#readerFooter');
+      this.prevBtn = $('#prevSectionBtn');
+      this.nextBtn = $('#nextSectionBtn');
+      this.backBtn = $('#backToDirBtn');
+      this.currentItemLabel = $('#readerCurrentItem');
+      this.hero = $('#hero');
+
+      // Generate dashboard cards
+      this._generateDashboard();
+
+      // Listen to Hash Changes
+      window.addEventListener('hashchange', () => {
+        this.handleRoute();
+      });
+
+      // Back to directory button
+      if (this.backBtn) {
+        this.backBtn.addEventListener('click', () => {
+          window.location.hash = 'home';
+        });
+      }
+
+      // Prev / Next buttons
+      if (this.prevBtn) {
+        this.prevBtn.addEventListener('click', () => {
+          this.navigate(-1);
+        });
+      }
+      if (this.nextBtn) {
+        this.nextBtn.addEventListener('click', () => {
+          this.navigate(1);
+        });
+      }
+
+      // Handle initial load route
+      this.handleRoute();
+    },
+
+    _generateDashboard: function () {
+      const grid = $('#dashboardGrid');
+      if (!grid) return;
+
+      grid.innerHTML = '';
+
+      const items = [
+        { id: 'preamble', num: 'Intro', title: 'Preamble', desc: 'The founding declaration, supreme status, and binding force of the CIBSSA constitution.' },
+        { id: 'article-1', num: 'Article 1', title: 'General Provisions', desc: 'Definitions of key terms, official name, motto, core principles, and aims of CIBSSA.' },
+        { id: 'article-2', num: 'Article 2', title: 'Membership & Privileges', desc: 'Rules for ordinary and honorary membership, rights, and duties of CIBSSA members.' },
+        { id: 'article-3', num: 'Article 3', title: 'Constituent Bodies', desc: 'Structure of the association: Executive Council, Representative Council, and Congress.' },
+        { id: 'article-4', num: 'Article 4', title: 'Functions & Meetings', desc: 'Legislative powers, executive functions, meeting rules, mace, and quorum details.' },
+        { id: 'article-5', num: 'Article 5', title: 'Duties of Officers', desc: 'Specific roles and responsibilities from President and Speaker to Chief Whip and Clerk.' },
+        { id: 'article-6', num: 'Article 6', title: 'Order of Precedence', desc: 'The official protocol and hierarchy of positions within the association.' },
+        { id: 'article-7', num: 'Article 7', title: 'Advisory Committee & Patrons', desc: 'The Board of Elders (emeritus leaders), Staff Adviser, and Grand Patrons/Matrons.' },
+        { id: 'article-8', num: 'Article 8', title: 'Constitution & Elections', desc: 'Electoral committee, candidate requirements, GPAs, and amendment guidelines.' },
+        { id: 'article-9', num: 'Article 9', title: 'Finance, Budgets & Projects', desc: 'Allocation percentages (70% Executive, 20% CRC, 10% Advisory) and dues.' },
+        { id: 'article-10', num: 'Article 10', title: 'Appointments & Committees', desc: 'Presidential appointments (Chief of Staff, Press Sec) and standing committees.' },
+        { id: 'article-11', num: 'Article 11', title: 'Inauguration & Activities', desc: 'Transition timeline, academic programs, and political consciousness.' },
+        { id: 'article-12', num: 'Article 12', title: 'Impeachment & Resignation', desc: 'Rules for disciplinary actions, suspensions, and official resignations.' },
+        { id: 'assent', num: 'Sign-Off', title: 'Assent & Citation', desc: 'The official review signatures, citation name, and date of commencement.' },
+        { id: 'appendices', num: 'Oaths', title: 'Appendices', desc: 'Solemn oaths of allegiance and office for the Executives and CRC.' }
+      ];
+
+      items.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'dashboard-card';
+        card.innerHTML = `
+          <div>
+            <div class="dashboard-card-num">${item.num}</div>
+            <h3 class="dashboard-card-title">${item.title}</h3>
+            <p class="dashboard-card-desc">${item.desc}</p>
+          </div>
+          <div class="dashboard-card-action">
+            Read Section
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          window.location.hash = item.id;
+        });
+        grid.appendChild(card);
+      });
+    },
+
+    handleRoute: function () {
+      const hash = window.location.hash.slice(1) || 'home';
+      
+      let activeArticleId = '';
+      let targetSectionId = '';
+
+      if (hash === 'home' || hash === '') {
+        document.body.classList.remove('app-view-active');
+        if (this.dashboard) this.dashboard.style.display = 'block';
+        if (this.hero) this.hero.style.display = 'block';
+        if (this.readerHeader) this.readerHeader.style.display = 'none';
+        if (this.readerFooter) this.readerFooter.style.display = 'none';
+
+        $$('.constitution-article').forEach(el => el.classList.remove('active-article'));
+        $$('.toc-link').forEach(link => {
+          if (link.getAttribute('href') === '#home') {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+        
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return;
+      }
+
+      // Route checks
+      if (this.ROUTE_ITEMS.includes(hash)) {
+        activeArticleId = hash;
+      } else {
+        const sectionEl = document.getElementById(hash);
+        if (sectionEl) {
+          targetSectionId = hash;
+          const parentArticle = sectionEl.closest('.constitution-article');
+          if (parentArticle) {
+            activeArticleId = parentArticle.id;
+          }
+        }
+      }
+
+      if (!activeArticleId) {
+        window.location.hash = 'home';
+        return;
+      }
+
+      // App view active states
+      document.body.classList.add('app-view-active');
+      if (this.dashboard) this.dashboard.style.display = 'none';
+      if (this.hero) this.hero.style.display = 'none';
+      if (this.readerHeader) this.readerHeader.style.display = 'flex';
+      if (this.readerFooter) this.readerFooter.style.display = 'flex';
+
+      // Set active article
+      $$('.constitution-article').forEach((el) => {
+        if (el.id === activeArticleId) {
+          el.classList.add('active-article');
+        } else {
+          el.classList.remove('active-article');
+        }
+      });
+
+      // Update Reader Header Current Title
+      const articleEl = document.getElementById(activeArticleId);
+      const titleEl = $('h2.article-title', articleEl);
+      if (this.currentItemLabel && titleEl) {
+        const numSpan = $('.article-number', titleEl);
+        const articleNumber = numSpan ? numSpan.textContent.trim() : '';
+        this.currentItemLabel.textContent = titleEl.textContent
+          .replace(articleNumber, '')
+          .replace('📜', '')
+          .replace('✍️', '')
+          .replace('📖', '')
+          .trim();
+      }
+
+      // Pagination active states
+      const currentIndex = this.ROUTE_ITEMS.indexOf(activeArticleId);
+      if (this.prevBtn) this.prevBtn.disabled = currentIndex <= 0;
+      if (this.nextBtn) this.nextBtn.disabled = currentIndex >= this.ROUTE_ITEMS.length - 1;
+
+      // Update TOC sidebar active state
+      $$('.toc-link').forEach((link) => {
+        const linkHash = link.getAttribute('href').slice(1);
+        if (linkHash === hash || linkHash === activeArticleId) {
+          link.classList.add('active');
+          const parentLi = link.closest('.toc-article');
+          if (parentLi) parentLi.classList.remove('collapsed');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+
+      // Scroll view logic
+      if (targetSectionId) {
+        const secEl = document.getElementById(targetSectionId);
+        if (secEl) {
+          setTimeout(() => {
+            const headerOffset = 90;
+            const top = secEl.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+          }, 100);
+        }
+      } else {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    },
+
+    navigate: function (direction) {
+      const hash = window.location.hash.slice(1);
+      let activeArticleId = '';
+
+      if (this.ROUTE_ITEMS.includes(hash)) {
+        activeArticleId = hash;
+      } else {
+        const sectionEl = document.getElementById(hash);
+        if (sectionEl) {
+          const parentArticle = sectionEl.closest('.constitution-article');
+          if (parentArticle) activeArticleId = parentArticle.id;
+        }
+      }
+
+      const currentIndex = this.ROUTE_ITEMS.indexOf(activeArticleId);
+      const nextIndex = currentIndex + direction;
+
+      if (nextIndex >= 0 && nextIndex < this.ROUTE_ITEMS.length) {
+        window.location.hash = this.ROUTE_ITEMS[nextIndex];
+      }
+    }
+  };
+
+  /* ──────────────────────────────────────────────
+   *  4. SEARCH FUNCTIONALITY
    * ────────────────────────────────────────────── */
 
   const Search = {
@@ -345,23 +496,21 @@
     clearBtn: null,
     resultsContainer: null,
     resultCount: null,
-    _allSections: [],     // cached { heading, text, el }
+    _allSections: [],
 
     init: function () {
-      this.input = $('#search-input');
-      this.clearBtn = $('#search-clear');
-      this.resultsContainer = $('#search-results');
-      this.resultCount = $('#search-count, #result-count');
+      this.input = $('#searchInput');
+      this.clearBtn = $('#searchClear');
+      this.resultsContainer = $('#searchResultsDropdown');
+      this.resultCount = $('#searchResultsCount');
       if (!this.input) return;
 
       this._cacheContent();
 
-      // Debounced search
       this.input.addEventListener('input', debounce(function () {
         Search._performSearch(Search.input.value.trim());
       }, 300));
 
-      // Clear button
       if (this.clearBtn) {
         this.clearBtn.addEventListener('click', function () {
           Search.input.value = '';
@@ -370,35 +519,26 @@
         });
       }
 
-      // Close results on outside click
       document.addEventListener('click', function (e) {
         if (Search.resultsContainer && !Search.resultsContainer.contains(e.target) && e.target !== Search.input) {
-          Search.resultsContainer.classList.remove('visible');
+          Search.resultsContainer.classList.remove('open');
         }
       });
 
-      // Show results again on focus if there's a query
       this.input.addEventListener('focus', function () {
         if (Search.input.value.trim().length >= 2 && Search.resultsContainer) {
-          Search.resultsContainer.classList.add('visible');
+          Search.resultsContainer.classList.add('open');
         }
       });
     },
 
-    /** Cache all searchable text blocks on page load */
     _cacheContent: function () {
-      var blocks = $$('article, .article, section, .section');
-      blocks.forEach(function (block) {
-        var heading = $('h2, h3, h4, .article-title, .article-header, .section-title, .section-header', block);
-        var headingText = heading ? heading.textContent.trim() : '';
-        var bodyText = block.textContent.trim();
-        var id = heading ? heading.id : block.id;
-
-        if (!id) {
-          id = 'search-' + Math.random().toString(36).substring(2, 9);
-          if (heading) heading.id = id;
-          else block.id = id;
-        }
+      const blocks = $$('article.constitution-article, section.constitution-section');
+      blocks.forEach((block) => {
+        const heading = $('h2, h3', block);
+        const headingText = heading ? heading.textContent.trim() : '';
+        const bodyText = block.textContent.trim();
+        const id = block.id;
 
         Search._allSections.push({
           heading: headingText,
@@ -409,30 +549,28 @@
       });
     },
 
-    /** Run a search and display results */
     _performSearch: function (query) {
-      this._clearHighlights();
-
       if (query.length < 2) {
         this._clearResults();
         return;
       }
 
-      var regex = new RegExp('(' + escapeRegex(query) + ')', 'gi');
-      var matches = [];
+      if (this.clearBtn) this.clearBtn.classList.add('visible');
+
+      const regex = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+      const matches = [];
 
       this._allSections.forEach(function (section) {
         if (regex.test(section.text)) {
-          // Extract a snippet around the first match
-          var idx = section.text.toLowerCase().indexOf(query.toLowerCase());
-          var start = Math.max(0, idx - 40);
-          var end = Math.min(section.text.length, idx + query.length + 80);
-          var snippet = (start > 0 ? '…' : '') +
-                        section.text.substring(start, end).replace(regex, '<mark>$1</mark>') +
-                        (end < section.text.length ? '…' : '');
+          const idx = section.text.toLowerCase().indexOf(query.toLowerCase());
+          const start = Math.max(0, idx - 40);
+          const end = Math.min(section.text.length, idx + query.length + 80);
+          const snippet = (start > 0 ? '…' : '') +
+                          section.text.substring(start, end).replace(regex, '<mark class="search-highlight">$1</mark>') +
+                          (end < section.text.length ? '…' : '');
 
           matches.push({
-            heading: section.heading,
+            heading: section.heading.replace('📜', '').replace('✍️', '').replace('📖', '').trim(),
             snippet: snippet,
             id: section.id,
             el: section.el
@@ -443,15 +581,14 @@
       this._renderResults(matches, query);
     },
 
-    /** Render the results dropdown */
     _renderResults: function (matches, query) {
       if (!this.resultsContainer) return;
 
       this.resultsContainer.innerHTML = '';
 
       if (matches.length === 0) {
-        this.resultsContainer.innerHTML = '<div class="search-no-results">No results found for "<strong>' + escapeRegex(query) + '</strong>"</div>';
-        this.resultsContainer.classList.add('visible');
+        this.resultsContainer.innerHTML = '<div class="search-result-no-results">No results found for "<strong>' + escapeRegex(query) + '</strong>"</div>';
+        this.resultsContainer.classList.add('open');
         if (this.resultCount) this.resultCount.textContent = '0 results';
         return;
       }
@@ -460,162 +597,32 @@
         this.resultCount.textContent = matches.length + ' result' + (matches.length !== 1 ? 's' : '');
       }
 
-      matches.forEach(function (m) {
-        var item = document.createElement('div');
+      matches.forEach((m) => {
+        const item = document.createElement('div');
         item.classList.add('search-result-item');
         item.innerHTML =
-          '<div class="search-result-heading">' + m.heading + '</div>' +
+          '<div class="search-result-title">' + m.heading + '</div>' +
           '<div class="search-result-snippet">' + m.snippet + '</div>';
 
         item.addEventListener('click', function () {
-          Sidebar._scrollTo(m.id);
-          Search.resultsContainer.classList.remove('visible');
-
-          // Also expand article
-          var article = m.el.closest('article, .article');
-          if (article) Accordion.expand(article);
+          window.location.hash = m.id;
+          Search.resultsContainer.classList.remove('open');
+          Sidebar._closeMobile();
         });
 
         Search.resultsContainer.appendChild(item);
       });
 
-      this.resultsContainer.classList.add('visible');
+      this.resultsContainer.classList.add('open');
     },
 
     _clearResults: function () {
       if (this.resultsContainer) {
         this.resultsContainer.innerHTML = '';
-        this.resultsContainer.classList.remove('visible');
+        this.resultsContainer.classList.remove('open');
       }
+      if (this.clearBtn) this.clearBtn.classList.remove('visible');
       if (this.resultCount) this.resultCount.textContent = '';
-      this._clearHighlights();
-    },
-
-    /** Remove all <mark> highlights from document body */
-    _clearHighlights: function () {
-      $$('mark.search-highlight').forEach(function (mark) {
-        var parent = mark.parentNode;
-        parent.replaceChild(document.createTextNode(mark.textContent), mark);
-        parent.normalize();
-      });
-    }
-  };
-
-  /* ──────────────────────────────────────────────
-   *  4. COLLAPSIBLE ARTICLE ACCORDIONS
-   * ────────────────────────────────────────────── */
-
-  const Accordion = {
-    init: function () {
-      var articles = $$('article, .article');
-      articles.forEach(function (article) {
-        var header = $('h2, .article-header, .article-title', article);
-        var content = $( '.article-content, .article-body', article);
-        if (!header || !content) return;
-
-        // Add chevron indicator
-        if (!$('.accordion-chevron', header)) {
-          var chevron = document.createElement('span');
-          chevron.classList.add('accordion-chevron');
-          chevron.innerHTML = '&#9660;'; // ▼
-          header.appendChild(chevron);
-        }
-
-        // Start expanded by default (first article) or collapsed
-        // We keep them all expanded initially for accessibility
-        article.classList.add('accordion', 'expanded');
-
-        header.style.cursor = 'pointer';
-        header.setAttribute('role', 'button');
-        header.setAttribute('aria-expanded', 'true');
-        header.setAttribute('tabindex', '0');
-
-        header.addEventListener('click', function () {
-          Accordion.toggle(article);
-        });
-
-        // Keyboard support
-        header.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            Accordion.toggle(article);
-          }
-        });
-      });
-
-      // Expand All / Collapse All buttons
-      var expandAllBtn = $('#expand-all');
-      var collapseAllBtn = $('#collapse-all');
-
-      if (expandAllBtn) {
-        expandAllBtn.addEventListener('click', function () {
-          Accordion.expandAll();
-        });
-      }
-      if (collapseAllBtn) {
-        collapseAllBtn.addEventListener('click', function () {
-          Accordion.collapseAll();
-        });
-      }
-    },
-
-    toggle: function (article) {
-      if (article.classList.contains('expanded')) {
-        this.collapse(article);
-      } else {
-        this.expand(article);
-      }
-    },
-
-    expand: function (article) {
-      var content = $( '.article-content, .article-body', article);
-      var header = $('h2, .article-header, .article-title', article);
-      if (!content) return;
-
-      article.classList.add('expanded');
-      article.classList.remove('collapsed-article');
-
-      // Animate height
-      content.style.maxHeight = content.scrollHeight + 'px';
-      content.style.opacity = '1';
-
-      if (header) header.setAttribute('aria-expanded', 'true');
-
-      // After transition, remove max-height so nested content isn't clipped
-      setTimeout(function () {
-        content.style.maxHeight = 'none';
-      }, 500);
-    },
-
-    collapse: function (article) {
-      var content = $( '.article-content, .article-body', article);
-      var header = $('h2, .article-header, .article-title', article);
-      if (!content) return;
-
-      // Set explicit height first so CSS transition works
-      content.style.maxHeight = content.scrollHeight + 'px';
-      // Force reflow
-      content.offsetHeight; // eslint-disable-line no-unused-expressions
-
-      content.style.maxHeight = '0';
-      content.style.opacity = '0';
-
-      article.classList.remove('expanded');
-      article.classList.add('collapsed-article');
-
-      if (header) header.setAttribute('aria-expanded', 'false');
-    },
-
-    expandAll: function () {
-      $$('article, .article').forEach(function (article) {
-        Accordion.expand(article);
-      });
-    },
-
-    collapseAll: function () {
-      $$('article, .article').forEach(function (article) {
-        Accordion.collapse(article);
-      });
     }
   };
 
@@ -628,10 +635,9 @@
     SCROLL_THRESHOLD: 300,
 
     init: function () {
-      this.btn = $('#back-to-top');
+      this.btn = $('#backToTop');
       if (!this.btn) return;
 
-      // Show / hide based on scroll position
       window.addEventListener('scroll', function () {
         if (window.pageYOffset > BackToTop.SCROLL_THRESHOLD) {
           BackToTop.btn.classList.add('visible');
@@ -640,7 +646,6 @@
         }
       }, { passive: true });
 
-      // Scroll to top on click
       this.btn.addEventListener('click', function () {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
@@ -655,30 +660,8 @@
     bar: null,
 
     init: function () {
-      this.bar = $('#progress-bar, .progress-bar');
-
-      // Create the bar if it doesn't already exist in the DOM
-      if (!this.bar) {
-        this.bar = document.createElement('div');
-        this.bar.id = 'progress-bar';
-        this.bar.setAttribute('role', 'progressbar');
-        this.bar.setAttribute('aria-valuemin', '0');
-        this.bar.setAttribute('aria-valuemax', '100');
-        document.body.prepend(this.bar);
-
-        // Inline styles as fallback (CSS file should override)
-        Object.assign(this.bar.style, {
-          position: 'fixed',
-          top: '0',
-          left: '0',
-          height: '3px',
-          width: '0%',
-          background: 'linear-gradient(90deg, #7c3aed, #db2777, #06b6d4)',
-          zIndex: '10000',
-          transition: 'width 0.15s ease-out',
-          borderRadius: '0 2px 2px 0'
-        });
-      }
+      this.bar = $('#progressBar');
+      if (!this.bar) return;
 
       window.addEventListener('scroll', function () {
         ProgressBar._update();
@@ -686,11 +669,10 @@
     },
 
     _update: function () {
-      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      var docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      var progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
       this.bar.style.width = progress + '%';
-      this.bar.setAttribute('aria-valuenow', Math.round(progress));
     }
   };
 
@@ -702,19 +684,18 @@
     observer: null,
 
     init: function () {
-      var targets = $$('.reveal, article, .article, section, .section, .preamble, .amendment');
+      const targets = $$('.dashboard-card, section.constitution-section, .oath-card, .signatory-card');
 
-      if (!targets.length) return;
+      if (!targets.length || !window.IntersectionObserver) return;
 
-      // Add the initial hidden class
       targets.forEach(function (el) {
         el.classList.add('reveal-hidden');
       });
 
-      var options = {
+      const options = {
         root: null,
-        rootMargin: '0px 0px -60px 0px',
-        threshold: 0.1
+        rootMargin: '0px 0px -40px 0px',
+        threshold: 0.05
       };
 
       this.observer = new IntersectionObserver(function (entries) {
@@ -722,7 +703,6 @@
           if (entry.isIntersecting) {
             entry.target.classList.add('reveal-visible');
             entry.target.classList.remove('reveal-hidden');
-            // Unobserve after reveal so animation only plays once
             ScrollReveal.observer.unobserve(entry.target);
           }
         });
@@ -740,17 +720,12 @@
 
   const PrintButton = {
     init: function () {
-      var btn = $('#print-btn, #print-button, .print-btn');
+      const btn = $('#printBtn');
       if (!btn) return;
 
       btn.addEventListener('click', function (e) {
         e.preventDefault();
-        // Expand all articles before printing
-        Accordion.expandAll();
-        // Small delay to let DOM update
-        setTimeout(function () {
-          window.print();
-        }, 300);
+        window.print();
       });
     }
   };
@@ -761,71 +736,47 @@
 
   const FontSize = {
     STORAGE_KEY: 'cibssa-font-size',
-    MIN: 12,
+    MIN: 14,
     MAX: 24,
     DEFAULT: 16,
     STEP: 2,
     _current: 16,
 
     init: function () {
-      var increaseBtn = $('#font-increase, .font-increase');
-      var decreaseBtn = $('#font-decrease, .font-decrease');
-      var resetBtn = $('#font-reset, .font-reset');
+      const increaseBtn = $('#fontIncrease');
+      const decreaseBtn = $('#fontDecrease');
+      const mainContent = $('#mainContent');
 
-      // Load saved preference
-      var saved = localStorage.getItem(this.STORAGE_KEY);
-      if (saved) {
-        this._current = parseInt(saved, 10);
-      } else {
-        this._current = this.DEFAULT;
-      }
+      if (!mainContent) return;
+
+      const saved = localStorage.getItem(this.STORAGE_KEY);
+      this._current = saved ? parseInt(saved, 10) : this.DEFAULT;
       this._apply();
 
       if (increaseBtn) {
-        increaseBtn.addEventListener('click', function () {
-          FontSize.increase();
+        increaseBtn.addEventListener('click', () => {
+          if (this._current < this.MAX) {
+            this._current += this.STEP;
+            this._apply();
+            this._save();
+          }
         });
       }
       if (decreaseBtn) {
-        decreaseBtn.addEventListener('click', function () {
-          FontSize.decrease();
+        decreaseBtn.addEventListener('click', () => {
+          if (this._current > this.MIN) {
+            this._current -= this.STEP;
+            this._apply();
+            this._save();
+          }
         });
       }
-      if (resetBtn) {
-        resetBtn.addEventListener('click', function () {
-          FontSize.reset();
-        });
-      }
-    },
-
-    increase: function () {
-      if (this._current < this.MAX) {
-        this._current += this.STEP;
-        this._apply();
-        this._save();
-      }
-    },
-
-    decrease: function () {
-      if (this._current > this.MIN) {
-        this._current -= this.STEP;
-        this._apply();
-        this._save();
-      }
-    },
-
-    reset: function () {
-      this._current = this.DEFAULT;
-      this._apply();
-      this._save();
     },
 
     _apply: function () {
-      var mainContent = $('#main-content, .main-content, main');
+      const mainContent = $('#mainContent');
       if (mainContent) {
         mainContent.style.fontSize = this._current + 'px';
-      } else {
-        document.documentElement.style.fontSize = this._current + 'px';
       }
     },
 
@@ -840,23 +791,20 @@
 
   const Mobile = {
     init: function () {
-      // Close sidebar on Escape key
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
           Sidebar._closeMobile();
         }
       });
 
-      // Prevent body scroll when sidebar is open
-      var sidebarEl = $('#sidebar');
+      const sidebarEl = $('#sidebar');
       if (sidebarEl) {
         sidebarEl.addEventListener('touchmove', function (e) {
           e.stopPropagation();
         }, { passive: true });
       }
 
-      // Handle viewport resize – close sidebar if switching to desktop
-      var mql = window.matchMedia('(min-width: 1024px)');
+      const mql = window.matchMedia('(min-width: 1024px)');
       function handleResize(e) {
         if (e.matches) {
           Sidebar._closeMobile();
@@ -865,41 +813,18 @@
       if (mql.addEventListener) {
         mql.addEventListener('change', handleResize);
       } else if (mql.addListener) {
-        mql.addListener(handleResize); // Safari < 14
+        mql.addListener(handleResize);
       }
     }
   };
 
   /* ──────────────────────────────────────────────
-   *  ADDITIONAL: Smooth anchor handling for all
-   *  in-page links (not just TOC links)
-   * ────────────────────────────────────────────── */
-
-  const SmoothAnchors = {
-    init: function () {
-      document.addEventListener('click', function (e) {
-        var link = e.target.closest('a[href^="#"]');
-        if (!link) return;
-        var targetId = link.getAttribute('href').slice(1);
-        if (!targetId) return;
-        var target = document.getElementById(targetId);
-        if (!target) return;
-
-        e.preventDefault();
-        var headerOffset = 80;
-        var top = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: top, behavior: 'smooth' });
-      });
-    }
-  };
-
-  /* ──────────────────────────────────────────────
-   *  ADDITIONAL: Active header shadow on scroll
+   *  11. HEADER SHADOW ON SCROLL
    * ────────────────────────────────────────────── */
 
   const HeaderShadow = {
     init: function () {
-      var header = $('header, .site-header, #site-header');
+      const header = $('#mainHeader');
       if (!header) return;
 
       window.addEventListener('scroll', function () {
@@ -919,20 +844,18 @@
   function boot() {
     DarkMode.init();
     Sidebar.init();
+    AppRouter.init();
     Search.init();
-    Accordion.init();
     BackToTop.init();
     ProgressBar.init();
     ScrollReveal.init();
     PrintButton.init();
     FontSize.init();
     Mobile.init();
-    SmoothAnchors.init();
     HeaderShadow.init();
 
-    // Log successful initialisation (dev mode only)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      console.log('%c[CIBSSA] Constitution site initialised ✓', 'color: #7c3aed; font-weight: bold;');
+      console.log('%c[CIBSSA] Constitution app initialised ✓', 'color: #7c3aed; font-weight: bold;');
     }
   }
 
